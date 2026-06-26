@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#08080c" />
+<title>Setlist Prediction · July 5, 2026</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ---------- Design Tokens ---------- */
+:root{
+  --bg:#08080c;
+  --bg-2:#0d0d15;
+  --surface:rgba(255,255,255,.035);
+  --surface-2:rgba(255,255,255,.055);
+  --border:rgba(255,255,255,.085);
+  --border-strong:rgba(255,255,255,.16);
+  --text:#edeef4;
+  --text-dim:#9b9caa;
+  --text-faint:#6b6c7c;
+  --accent:#a78bfa;
+  --accent-2:#7c9cff;
+  --accent-3:#f0abfc;
+  --gold:#f5c451;
+  --good:#5fd6a4;
+  --grad:linear-gradient(120deg,#a78bfa 0%,#7c9cff 60%,#f0abfc 120%);
+  --radius:20px;
+  --radius-sm:14px;
+  --shadow:0 30px 80px -30px rgba(0,0,0,.8);
+  --maxw:880px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  line-height:1.6;
+  font-size:16px;
+  letter-spacing:.1px;
+  overflow-x:hidden;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- Background glow ---------- */
+.bg-fx{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none;}
+.bg-fx::before,.bg-fx::after{
+  content:"";position:absolute;width:60vmax;height:60vmax;border-radius:50%;
+  filter:blur(120px);opacity:.5;
+}
+.bg-fx::before{background:radial-gradient(circle,#5b3fb8,transparent 60%);top:-20vmax;left:-15vmax;animation:drift1 18s ease-in-out infinite alternate;}
+.bg-fx::after{background:radial-gradient(circle,#274b9c,transparent 60%);bottom:-25vmax;right:-15vmax;animation:drift2 22s ease-in-out infinite alternate;}
+.bg-grid{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%);
+  mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%);
+}
+@keyframes drift1{to{transform:translate(8vmax,6vmax) scale(1.15);}}
+@keyframes drift2{to{transform:translate(-6vmax,-8vmax) scale(1.1);}}
+
+/* ---------- Loader ---------- */
+#loader{
+  position:fixed;inset:0;z-index:200;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  transition:opacity .8s ease,visibility .8s ease;
+}
+#loader.hide{opacity:0;visibility:hidden;}
+.loader-tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--text-faint);text-transform:uppercase;}
+.loader-orb{width:54px;height:54px;border-radius:50%;background:var(--grad);filter:blur(2px);animation:pulse 1.5s ease-in-out infinite;box-shadow:0 0 60px rgba(167,139,250,.5);}
+.loader-bar{width:200px;max-width:55vw;height:2px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
+.loader-bar span{display:block;height:100%;width:0;background:var(--grad);animation:fill 1.6s cubic-bezier(.7,0,.3,1) forwards;}
+.loader-sub{font-size:12.5px;color:var(--text-dim);letter-spacing:.4px;}
+@keyframes pulse{0%,100%{transform:scale(.85);opacity:.7;}50%{transform:scale(1.08);opacity:1;}}
+@keyframes fill{to{width:100%;}}
+
+/* ---------- Reveal animation (blur fade, "typing-like") ---------- */
+.reveal{opacity:0;filter:blur(14px);transform:translateY(16px);
+  transition:opacity .9s cubic-bezier(.2,.7,.2,1),filter .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1);}
+.reveal.visible{opacity:1;filter:blur(0);transform:none;}
+.word{display:inline-block;opacity:0;filter:blur(16px);transform:translateY(12px);
+  transition:opacity .7s cubic-bezier(.2,.7,.2,1),filter .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+.word.visible{opacity:1;filter:blur(0);transform:none;}
+
+/* ---------- Floating Reasoning Button ---------- */
+.fab{
+  position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);right:16px;z-index:90;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 15px;border-radius:100px;cursor:pointer;
+  background:rgba(20,20,30,.6);border:1px solid var(--border-strong);
+  color:var(--text);font-size:13px;font-weight:600;letter-spacing:.2px;
+  backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);
+  box-shadow:0 10px 30px -10px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;
+  animation:fabIn .8s 1.4s both;
+}
+.fab:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 14px 34px -10px rgba(124,156,255,.5);}
+.fab:active{transform:translateY(0) scale(.97);}
+.fab svg{width:17px;height:17px;}
+.fab .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+@keyframes fabIn{from{opacity:0;transform:translateY(-12px);}to{opacity:1;transform:none;}}
+@media (max-width:430px){.fab .fab-text{display:none;}.fab{padding:11px;}}
+
+/* ---------- Layout ---------- */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px;}
+section{padding:34px 0;}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);opacity:.6;}
+.sec-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(22px,5vw,30px);font-weight:600;letter-spacing:-.5px;margin-bottom:6px;}
+.sec-desc{color:var(--text-dim);font-size:14.5px;max-width:60ch;}
+
+/* ---------- Hero ---------- */
+.hero{padding:clamp(80px,18vh,150px) 0 30px;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);
+  border:1px solid var(--border);padding:7px 13px;border-radius:100px;margin-bottom:22px;background:var(--surface);}
+.hero-eyebrow b{color:var(--accent);font-weight:600;}
+.hero-title{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-1.5px;line-height:1.04;
+  font-size:clamp(38px,9vw,66px);margin-bottom:20px;}
+.hero-title .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px;}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);padding:8px 14px;border-radius:100px;}
+.pill b{color:var(--text);font-weight:600;}
+.pill.accent{border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.08);color:var(--accent);}
+
+/* ---------- Cards ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;
+  backdrop-filter:blur(8px);transition:border-color .3s ease,transform .3s ease;}
+.card:hover{border-color:var(--border-strong);}
+
+/* ---------- Service details ---------- */
+.detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+.detail-cell{background:var(--bg-2);padding:16px 18px;}
+.detail-cell .k{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:5px;}
+.detail-cell .v{font-size:16px;font-weight:600;}
+.band{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;}
+.band-chip{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 15px;flex:1 1 auto;min-width:150px;}
+.band-chip .role{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;}
+.band-chip .name{font-size:14.5px;font-weight:600;}
+
+/* ---------- Setlist ---------- */
+.setlist{display:flex;flex-direction:column;gap:12px;}
+.song{display:flex;align-items:center;gap:16px;padding:18px 20px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;transition:transform .3s ease,border-color .3s ease;}
+.song:hover{transform:translateX(4px);border-color:var(--border-strong);}
+.song::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--grad);opacity:.8;}
+.song .num{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:var(--text-faint);min-width:30px;text-align:center;}
+.song .body{flex:1;min-width:0;}
+.song .title{font-size:18px;font-weight:600;letter-spacing:-.2px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.song .role{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.tag-repeat{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--accent-3);border:1px solid rgba(240,171,252,.4);background:rgba(240,171,252,.08);padding:2px 8px;border-radius:100px;font-weight:600;}
+.stars{display:flex;gap:2px;flex-shrink:0;}
+.stars span{color:var(--gold);font-size:15px;line-height:1;}
+.stars span.dim{color:rgba(255,255,255,.16);}
+.setlist-note{margin-top:16px;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:var(--radius-sm);
+  background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.22);font-size:14px;color:var(--text-dim);}
+.setlist-note b{color:var(--text);font-weight:600;}
+
+/* ---------- Anchor card ---------- */
+.anchor{border:1px solid rgba(124,156,255,.28);background:linear-gradient(180deg,rgba(124,156,255,.07),rgba(124,156,255,.02));}
+.code{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;color:#cdd3e6;
+  background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin:14px 0;
+  overflow-x:auto;white-space:pre;-webkit-overflow-scrolling:touch;}
+.code .hl{color:var(--accent);}
+.prose{color:var(--text-dim);font-size:14.5px;line-height:1.75;}
+.prose b{color:var(--text);font-weight:600;}
+
+/* ---------- Song justification ---------- */
+.just-card{margin-bottom:16px;}
+.just-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.just-head .idx{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.just-head h3{font-family:'Space Grotesk',sans-serif;font-size:21px;font-weight:600;letter-spacing:-.3px;}
+.just-head .sub{font-size:12px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;}
+.factor{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:11px 0;border-top:1px solid var(--border);}
+.factor:first-of-type{border-top:none;}
+.factor .fl{font-size:13px;font-weight:600;color:var(--accent-2);}
+.factor .fv{font-size:14px;color:var(--text-dim);}
+.factor .fv b{color:var(--text);font-weight:600;}
+
+/* ---------- Tables ---------- */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:var(--radius-sm);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:480px;}
+th{text-align:left;padding:13px 15px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-faint);
+  font-family:'JetBrains Mono',monospace;font-weight:500;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:13px 15px;border-bottom:1px solid var(--border);color:var(--text-dim);}
+tr:last-child td{border-bottom:none;}
+td b{color:var(--text);font-weight:600;}
+.col-primary{color:var(--accent)!important;font-weight:600;background:rgba(167,139,250,.06);}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+
+/* freq pick highlight */
+.pick td{background:rgba(167,139,250,.05);}
+.pick td:first-child{color:var(--accent);font-weight:600;}
+
+/* ---------- July history cards ---------- */
+.hist{display:grid;gap:12px;}
+.hist-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 18px;}
+.hist-card.pred{border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.06);}
+.hist-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.hist-year{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;}
+.hist-badge{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:100px;border:1px solid var(--border);color:var(--text-dim);}
+.hist-card.pred .hist-badge{color:var(--accent);border-color:rgba(167,139,250,.4);}
+.hist-songs{font-size:14px;color:var(--text-dim);}
+.hist-meta{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-faint);}
+.hist-meta span{background:rgba(255,255,255,.03);padding:3px 9px;border-radius:6px;}
+
+/* ---------- Avoided chips ---------- */
+.avoid{display:flex;flex-wrap:wrap;gap:9px;}
+.avoid-chip{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:7px 14px;font-size:13px;}
+.avoid-chip .nm{color:var(--text-dim);text-decoration:line-through;text-decoration-color:rgba(255,120,120,.5);}
+.avoid-chip .gp{font-size:11px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;}
+
+/* ---------- Confidence ---------- */
+.overall{display:flex;align-items:center;gap:22px;margin-bottom:24px;flex-wrap:wrap;}
+.overall .big{font-family:'Space Grotesk',sans-serif;font-size:clamp(48px,13vw,76px);font-weight:700;line-height:1;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.overall .lbl .t{font-size:15px;font-weight:600;}
+.overall .lbl .d{font-size:13.5px;color:var(--text-dim);max-width:42ch;margin-top:3px;}
+.conf-row{padding:16px 0;border-top:1px solid var(--border);}
+.conf-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:9px;}
+.conf-top .cl{font-size:15px;font-weight:600;}
+.conf-top .cp{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--text);}
+.bar{height:7px;border-radius:100px;background:rgba(255,255,255,.07);overflow:hidden;}
+.bar-fill{height:100%;width:0;border-radius:100px;background:var(--grad);transition:width 1.2s cubic-bezier(.2,.8,.2,1) .1s;}
+.conf-row.visible .bar-fill{width:var(--pct);}
+.conf-rat{font-size:13px;color:var(--text-dim);margin-top:8px;}
+
+/* ---------- Footer ---------- */
+footer{padding:40px 0 calc(env(safe-area-inset-bottom,0px) + 40px);text-align:center;border-top:1px solid var(--border);margin-top:30px;}
+footer .fl{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-faint);}
+footer .fp{font-size:13px;color:var(--text-dim);margin-top:8px;}
+
+/* ---------- Modal ---------- */
+.modal{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:18px;
+  background:rgba(4,4,8,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;visibility:hidden;transition:opacity .35s ease,visibility .35s ease;}
+.modal.open{opacity:1;visibility:visible;}
+.modal__panel{width:100%;max-width:680px;max-height:86vh;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#12121b,#0c0c12);border:1px solid var(--border-strong);border-radius:24px;
+  box-shadow:var(--shadow);transform:translateY(20px) scale(.97);opacity:0;transition:transform .4s cubic-bezier(.2,.8,.2,1),opacity .4s ease;overflow:hidden;}
+.modal.open .modal__panel{transform:none;opacity:1;}
+.modal__head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 22px;border-bottom:1px solid var(--border);}
+.modal__head .ht{display:flex;align-items:center;gap:11px;}
+.modal__head .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);color:var(--accent);}
+.modal__head h2{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;}
+.modal__head .hs{font-size:11.5px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:1px;}
+.modal__close{width:36px;height:36px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);
+  cursor:pointer;display:grid;place-items:center;transition:all .2s ease;flex-shrink:0;}
+.modal__close:hover{background:rgba(255,80,80,.12);border-color:rgba(255,80,80,.4);color:#ff9b9b;transform:rotate(90deg);}
+.modal__body{padding:22px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal__body .think-p{font-size:14px;line-height:1.78;color:var(--text-dim);margin-bottom:14px;}
+.modal__body .think-p:first-child{color:var(--text);}
+.modal__body .think-p b{color:var(--text);font-weight:600;}
+.modal__body code{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--accent-2);background:rgba(124,156,255,.1);padding:1px 6px;border-radius:5px;}
+.modal__body::-webkit-scrollbar{width:8px;}
+.modal__body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;}
+
+@media (max-width:600px){
+  .detail-grid{grid-template-columns:1fr;}
+  .factor{grid-template-columns:1fr;gap:4px;}
+  .factor .fl{color:var(--accent-2);}
+  section{padding:28px 0;}
+}
+@media (prefers-reduced-motion:reduce){
+  .reveal,.word{transition:none!important;opacity:1!important;filter:none!important;transform:none!important;}
+  .bg-fx::before,.bg-fx::after{animation:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-fx"></div>
+<div class="bg-grid"></div>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-tag">Setlist Engine</div>
+  <div class="loader-orb"></div>
+  <div class="loader-bar"><span></span></div>
+  <div class="loader-sub">Compiling prediction · July 5, 2026</div>
+</div>
+
+<!-- Floating reasoning button -->
+<button class="fab" id="thinkingFab" aria-label="Show thinking process">
+  <span class="dot"></span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3a6 6 0 0 0-4 10.5V16a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.5A6 6 0 0 0 12 3Z"/>
+    <path d="M9 21h6"/><path d="M10 18v3"/><path d="M14 18v3"/>
+  </svg>
+  <span class="fab-text">Reasoning</span>
+</button>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="wrap">
+    <span class="hero-eyebrow"><b>●</b> Prediction · First Sunday</span>
+    <h1 class="hero-title" id="heroTitle">Predicted <span class="grad">Setlist</span></h1>
+    <div class="hero-meta">
+      <span class="pill reveal"><b>July 5, 2026</b></span>
+      <span class="pill reveal">Sunday Morning</span>
+      <span class="pill accent reveal">≈ 80% confidence</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Service Details -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">Service Details</div>
+      <h2 class="sec-title reveal">Morning Service</h2>
+      <p class="sec-desc reveal" style="margin-bottom:22px;">A leaner three-piece configuration leading the first Sunday of July.</p>
+
+      <div class="detail-grid reveal">
+        <div class="detail-cell"><div class="k">Date</div><div class="v">July 5, 2026</div></div>
+        <div class="detail-cell"><div class="k">Service Type</div><div class="v">Sunday Morning</div></div>
+        <div class="detail-cell"><div class="k">Title</div><div class="v">Morning Service</div></div>
+        <div class="detail-cell"><div class="k">Items Count</div><div class="v">≈ 6</div></div>
+      </div>
+
+      <div class="band reveal">
+        <div class="band-chip"><span class="role">Drums</span><span class="name">Jordan Rapp</span></div>
+        <div class="band-chip"><span class="role">Electric Guitar</span><span class="name">Benjamin Meehan</span></div>
+        <div class="band-chip"><span class="role">Main Keys</span><span class="name">Aurelia Bahia</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Predicted Setlist -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">🎵 The Prediction</div>
+      <h2 class="sec-title reveal">Predicted Setlist</h2>
+
+      <div class="setlist" style="margin-top:22px;">
+        <div class="song reveal">
+          <div class="num">1</div>
+          <div class="body"><div class="title">Heaven</div><div class="role">Opener · keys-driven, atmospheric</div></div>
+          <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+        </div>
+        <div class="song reveal">
+          <div class="num">2</div>
+          <div class="body"><div class="title">King of Glory</div><div class="role">Declaration · triumphant middle</div></div>
+          <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span class="dim">★</span></div>
+        </div>
+        <div class="song reveal">
+          <div class="num">3</div>
+          <div class="body"><div class="title">The Isaiah Song</div><div class="role">Closer · intimate worship</div></div>
+          <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+        </div>
+        <div class="song reveal">
+          <div class="num">4</div>
+          <div class="body"><div class="title">Heaven <span class="tag-repeat">Repeat</span></div><div class="role">Extended worship · returns to the opener</div></div>
+          <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span class="dim">★</span></div>
+        </div>
+      </div>
+
+      <div class="setlist-note reveal">
+        <span>↳</span><div><b>3 unique songs, 4 total entries</b> — matching the established First Sunday pattern.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Anchor Pattern -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">🔑 Reasoning &amp; Analysis</div>
+      <h2 class="sec-title reveal">Anchor Pattern — July 6, 2025</h2>
+      <p class="sec-desc reveal">The single strongest data point is last year's near-identical first Sunday of July.</p>
+
+      <div class="card anchor reveal" style="margin-top:20px;">
+        <div class="code">2025-07-06 → <span class="hl">Heaven; King of Glory; The Isaiah Song; Heaven</span>
+Band: Bass: Jordan Rapp | Drums: Micah Green | Electric: Benjamin Meehan | Main Keys: Aurelia Bahia</div>
+        <p class="prose">This shares <b>the same keys player (Aurelia Bahia)</b>, <b>the same guitarist (Benjamin Meehan)</b>, <b>the same calendar position</b> (first Sunday of July), and <b>the same format</b> (morning only, no evening). Jordan Rapp shifts from bass to drums in 2026, making this a leaner 3-piece, but the core musical leadership (keys + electric) is identical.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Song-by-song justification -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">Song-by-Song Justification</div>
+      <h2 class="sec-title reveal" style="margin-bottom:22px;">Why each slot</h2>
+
+      <!-- 1 -->
+      <div class="card just-card reveal">
+        <div class="just-head"><span class="idx">01</span><h3>Heaven</h3><span class="sub">Opener</span></div>
+        <div class="factor"><div class="fl">Aurelia frequency</div><div class="fv">Played <b>5×</b> when she's on Main Keys — her single most-played song.</div></div>
+        <div class="factor"><div class="fl">First Sunday opener</div><div class="fv">Used as first Sunday opener on <b>5/3/2026</b> and <b>7/6/2025</b>.</div></div>
+        <div class="factor"><div class="fl">Rotation gap</div><div class="fv">Last played <b>5/3/2026</b> (~2 months) — ideal rotation window.</div></div>
+        <div class="factor"><div class="fl">Band fit</div><div class="fv">Keys-driven, atmospheric — perfect for a 3-piece without bass.</div></div>
+        <div class="factor"><div class="fl">July precedent</div><div class="fv">Opened the July first Sunday in <b>2025</b> and appeared in <b>2024-07-21</b>.</div></div>
+        <div class="code" style="margin-top:16px;">Aurelia's Main Keys services featuring Heaven:
+2025-07-06  ·  2025-10-12  ·  2025-12-28  ·  2026-05-03</div>
+      </div>
+
+      <!-- 2 -->
+      <div class="card just-card reveal">
+        <div class="just-head"><span class="idx">02</span><h3>King of Glory</h3><span class="sub">Declaration</span></div>
+        <div class="factor"><div class="fl">Proven pairing</div><div class="fv">Placed between Heaven and The Isaiah Song on <b>7/6/2025</b>.</div></div>
+        <div class="factor"><div class="fl">Aurelia history</div><div class="fv">Played on <b>2025-07-06</b> and <b>2026-03-29</b> with her on Main Keys.</div></div>
+        <div class="factor"><div class="fl">Rotation gap</div><div class="fv">Last played <b>3/29/2026</b> (~3 months) — due for return.</div></div>
+        <div class="factor"><div class="fl">Thematic fit</div><div class="fv">Triumphant / celebratory — a declaration song between Heaven and Isaiah Song.</div></div>
+        <div class="factor"><div class="fl">Middle-slot pattern</div><div class="fv">When Heaven + Isaiah Song are paired, the middle is always a triumphant declaration: <b>King of Glory</b> (7/6/25) or <b>Victory Belongs To Jesus</b> (10/12/25).</div></div>
+      </div>
+
+      <!-- 3 -->
+      <div class="card just-card reveal">
+        <div class="just-head"><span class="idx">03</span><h3>The Isaiah Song</h3><span class="sub">Closer</span></div>
+        <div class="factor"><div class="fl">Aurelia signature</div><div class="fv">Played <b>3×</b> when she's on Main Keys (7/6/25, 10/12/25, 2/8/26).</div></div>
+        <div class="factor"><div class="fl">Very overdue</div><div class="fv">Last played <b>2/8/2026</b> — nearly <b>5 months</b> gap (longest of any Aurelia regular).</div></div>
+        <div class="factor"><div class="fl">Heaven pairing</div><div class="fv">Appears alongside Heaven in <b>4 out of 4</b> instances in the dataset.</div></div>
+        <div class="factor"><div class="fl">Band fit</div><div class="fv">Intimate, keys-driven — ideal for a stripped-down 3-piece arrangement.</div></div>
+        <div class="factor"><div class="fl">Historical cluster</div><div class="fv">Heaven + Isaiah Song is the dataset's strongest song pairing.</div></div>
+        <div class="code" style="margin-top:16px;">All 4 appearances of The Isaiah Song paired with Heaven:
+2024-07-21: Give Me Jesus → Heaven → The Isaiah Song
+2025-02-02: Days of Elijah → Heaven → The Isaiah Song → Heaven
+2025-07-06: Heaven → King of Glory → The Isaiah Song → Heaven
+2025-10-12: Heaven → Victory Belongs To Jesus → The Isaiah Song</div>
+      </div>
+
+      <!-- 4 -->
+      <div class="card just-card reveal">
+        <div class="just-head"><span class="idx">04</span><h3>Heaven</h3><span class="sub">Repeat · Extended Worship</span></div>
+        <div class="factor"><div class="fl">Repeat pattern</div><div class="fv">First Sundays frequently end with a repeat of a key song.</div></div>
+        <div class="factor"><div class="fl">Direct precedent</div><div class="fv"><b>2025-07-06</b> ended with Heaven repeated.</div></div>
+        <div class="factor"><div class="fl">Other examples</div><div class="fv">Build Your Church repeated (1/5/25, 8/3/25, 10/5/25), Victory Belongs To Jesus (4/6/25), Joy (1/4/26).</div></div>
+        <div class="factor"><div class="fl">Worship flow</div><div class="fv">Returning to the atmospheric opener after intimate worship creates a powerful arc.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Supporting pattern analysis -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">📊 Supporting Pattern Analysis</div>
+      <h2 class="sec-title reveal">First Sunday of July — History</h2>
+
+      <div class="hist reveal" style="margin-top:20px;">
+        <div class="hist-card">
+          <div class="hist-top"><span class="hist-year">2024-07-07</span><span class="hist-badge">7 items · Karissa Meehan</span></div>
+          <div class="hist-songs">This Is Amazing Grace; Glorious Day; Believe For It; Jesus At The Center</div>
+        </div>
+        <div class="hist-card">
+          <div class="hist-top"><span class="hist-year">2025-07-06</span><span class="hist-badge">6 items · Aurelia Bahia</span></div>
+          <div class="hist-songs">Heaven; King of Glory; The Isaiah Song; Heaven</div>
+        </div>
+        <div class="hist-card pred">
+          <div class="hist-top"><span class="hist-year">2026-07-05</span><span class="hist-badge">Predicted · ≈6 · Aurelia Bahia</span></div>
+          <div class="hist-songs">Heaven; King of Glory; The Isaiah Song; Heaven</div>
+          <div class="hist-meta"><span>atmospheric worship</span><span>triumphant declaration</span><span>prophetic intimacy</span></div>
+        </div>
+      </div>
+
+      <h3 class="sec-title reveal" style="font-size:20px;margin-top:34px;">Aurelia Bahia — Main Keys Frequency</h3>
+      <div class="table-scroll reveal" style="margin-top:14px;">
+        <table>
+          <thead><tr><th>Song</th><th>Times Played</th><th>Last Played</th></tr></thead>
+          <tbody>
+            <tr class="pick"><td>Heaven</td><td><b>5</b></td><td class="mono">5/3/2026</td></tr>
+            <tr class="pick"><td>The Isaiah Song</td><td><b>3</b></td><td class="mono">2/8/2026</td></tr>
+            <tr><td>House Of Miracles</td><td>3</td><td class="mono">5/31/2026</td></tr>
+            <tr><td>Thank You Jesus For The Blood</td><td>3</td><td class="mono">6/21/2026</td></tr>
+            <tr class="pick"><td>King of Glory</td><td><b>2</b></td><td class="mono">3/29/2026</td></tr>
+            <tr><td>Trust In God</td><td>2</td><td class="mono">5/3/2026</td></tr>
+            <tr><td>King Of My Heart</td><td>2</td><td class="mono">5/31/2026</td></tr>
+            <tr><td>Victory Belongs To Jesus</td><td>2</td><td class="mono">6/7/2026</td></tr>
+            <tr><td>The Blessing</td><td>2</td><td class="mono">5/11/2025</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sec-title reveal" style="font-size:20px;margin-top:34px;">Songs Avoided — Too Recently Played</h3>
+      <div class="avoid reveal" style="margin-top:14px;">
+        <span class="avoid-chip"><span class="nm">Great Things</span><span class="gp">2 wks · 6/21</span></span>
+        <span class="avoid-chip"><span class="nm">Your Great Name</span><span class="gp">2 wks · 6/21</span></span>
+        <span class="avoid-chip"><span class="nm">Thank You Jesus For The Blood</span><span class="gp">2 wks · 6/21</span></span>
+        <span class="avoid-chip"><span class="nm">Our God Reigns</span><span class="gp">3 wks · 6/14</span></span>
+        <span class="avoid-chip"><span class="nm">In The Room</span><span class="gp">3 wks · 6/14</span></span>
+        <span class="avoid-chip"><span class="nm">Victory Belongs To Jesus</span><span class="gp">4 wks · 6/7</span></span>
+        <span class="avoid-chip"><span class="nm">House Of Miracles</span><span class="gp">5 wks · 5/31</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Alternatives -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">🔄 Alternative Possibilities</div>
+      <h2 class="sec-title reveal">If they vary the set</h2>
+      <p class="sec-desc reveal">The most likely substitution sits in <b>Slot 2</b> — the middle declaration song.</p>
+
+      <div class="table-scroll reveal" style="margin-top:18px;">
+        <table>
+          <thead><tr><th>Slot</th><th>Primary Pick</th><th>Alt 1</th><th>Alt 2</th><th>Alt 3</th></tr></thead>
+          <tbody>
+            <tr><td><b>1</b></td><td class="col-primary">Heaven</td><td>Heaven</td><td>Heaven</td><td>Heaven</td></tr>
+            <tr><td><b>2</b></td><td class="col-primary">King of Glory</td><td>Holy Forever <span class="mono">(4 mo)</span></td><td>Believe For It <span class="mono">(4 mo)</span></td><td>The Blessing <span class="mono">(3 mo)</span></td></tr>
+            <tr><td><b>3</b></td><td class="col-primary">The Isaiah Song</td><td>The Isaiah Song</td><td>The Isaiah Song</td><td>The Isaiah Song</td></tr>
+            <tr><td><b>4</b></td><td class="col-primary">Heaven (repeat)</td><td>Heaven (repeat)</td><td>Heaven (repeat)</td><td>Heaven (repeat)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card reveal" style="margin-top:16px;">
+        <p class="prose"><b>Holy Forever</b> is the strongest alternative for Slot 2 — Aurelia played it on Main Keys (3/15/26), it's been 4 months, and it's a keys-driven worship song that fits the 3-piece band beautifully.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Confidence -->
+  <section>
+    <div class="wrap">
+      <div class="eyebrow reveal">Confidence Summary</div>
+      <h2 class="sec-title reveal" style="margin-bottom:22px;">How sure are we?</h2>
+
+      <div class="overall reveal">
+        <div class="big"><span class="count" data-target="80">0</span>%</div>
+        <div class="lbl">
+          <div class="t">Overall setlist confidence</div>
+          <div class="d">The Heaven / Isaiah Song core is very strong; the middle song carries the most uncertainty.</div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="conf-row reveal" style="--pct:95%;border-top:none;">
+          <div class="conf-top"><span class="cl">Heaven as opener</span><span class="cp">95%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">Aurelia's #1 song on Main Keys; July first Sunday precedent; ideal rotation timing.</div>
+        </div>
+        <div class="conf-row reveal" style="--pct:90%;">
+          <div class="conf-top"><span class="cl">The Isaiah Song as closer</span><span class="cp">90%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">5 months overdue; 3× with Aurelia; 4/4 paired with Heaven.</div>
+        </div>
+        <div class="conf-row reveal" style="--pct:85%;">
+          <div class="conf-top"><span class="cl">Heaven repeat</span><span class="cp">85%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">Strong first Sunday repeat pattern; direct July precedent.</div>
+        </div>
+        <div class="conf-row reveal" style="--pct:70%;">
+          <div class="conf-top"><span class="cl">King of Glory as mid-song</span><span class="cp">70%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">Proven in this exact slot; but could swap for Holy Forever or Believe For It.</div>
+        </div>
+        <div class="conf-row reveal" style="--pct:85%;">
+          <div class="conf-top"><span class="cl">3 unique songs + 1 repeat</span><span class="cp">85%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">Matches first Sunday of July format from 2024 &amp; 2025.</div>
+        </div>
+        <div class="conf-row reveal" style="--pct:80%;">
+          <div class="conf-top"><span class="cl">Items count ≈ 6</span><span class="cp">80%</span></div>
+          <div class="bar"><div class="bar-fill"></div></div>
+          <div class="conf-rat">Consistent with first Sunday averages.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="fl">Setlist Engine · Prediction Report</div>
+      <div class="fp">Generated for July 5, 2026 — Sunday Morning Service</div>
+    </div>
+  </footer>
+</main>
+
+<!-- Thinking Modal -->
+<div class="modal" id="thinkingModal" aria-hidden="true">
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-label="Thinking process">
+    <div class="modal__head">
+      <div class="ht">
+        <div class="ico">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0-4 10.5V16a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.5A6 6 0 0 0 12 3Z"/><path d="M9 21h6"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Thinking Process</h2>
+          <div class="hs">Reasoning Trace</div>
+        </div>
+      </div>
+      <button class="modal__close" id="modalClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal__body" id="thinkBody"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Thinking text ---------- */
+const THINKING = [
+"The user wants me to predict a setlist for July 5, 2026 AM service (First Sunday, Morning only, no Evening service). The band members are Drums: Jordan Rapp, Electric Guitar: Benjamin Meehan, and Main Keys: Aurelia Bahia. Let me analyze the historical data to make a prediction.",
+"First, let me understand the patterns. <b>First Sunday patterns</b> — July 5, 2026 is the first Sunday of July. I look back across first Sunday morning services from 2024 and 2025 to see how they're typically structured: 2024-02-04 (This Is Amazing Grace; I Gotta Song; The Blessing), 2024-04-07 (You Are Good; Glorious Day; Worth), 2024-05-05 (Heaven; Give Me Jesus; Thank You Jesus For The Blood; Oh The Blood of Jesus), 2024-07-07 (This Is Amazing Grace; Glorious Day; Believe For It; Jesus At The Center), and onward through 2024-11-03 (All Creation; Heaven; He's in the Room; Heaven — Heaven repeated).",
+"Continuing into 2025: 2025-01-05 (Build Your Church repeated), 2025-02-02 (Days of Elijah; Heaven; The Isaiah Song — Heaven repeated), 2025-04-06 (Victory Belongs To Jesus repeated). I'm tracking which songs appear multiple times within a single service and which recur across dates — repeated closers are clearly a First Sunday habit.",
+"Now I track Aurelia's appearances across 2025 and 2026 where she plays Main Keys, on songs like Heaven, Our God Reigns, and Victory Belongs To Jesus. Recent Aurelia Main Keys services include 2026-02-22, 2026-03-15 (Holy Forever, House Of Miracles, Believe For It), 2026-03-29 (King of Glory), 2026-05-03 (Heaven; Tremble; Trust In God), 2026-05-31 (House Of Miracles), and 2026-06-21 (Great Things; Your Great Name; Thank You Jesus For The Blood).",
+"I check for services where Jordan Rapp is on drums, Benjamin Meehan on electric, and Aurelia on main keys together. Historically Jordan appears mostly on bass, or shares drums with Micah Green, so the all-three combination with Jordan solo on drums is unusual. Looking at the lineup changes through 2026, Jaime Alberto Fontalvo Anaya takes over bass from Jordan starting November 2025, with Jordan briefly returning in late March 2026.",
+"What's striking about July 5, 2026 is that Jordan appears to be the <b>sole</b> drummer — rare for a morning service. He's been sole drummer plenty of times in evening services with Benjamin on electric and Karissa on keys, so it's unusual for a morning but not unprecedented. The song selection will likely reflect a single drummer driving the rhythm.",
+"On counts: first Sundays typically have 5–7 items with 3–4 unique songs, sometimes with a repeat, with 6 being the most typical (an outlier in February 2026 had 10). Morning-only vs. morning+evening doesn't seem to change the morning length much.",
+"The single strongest reference point is 2025-07-06: Heaven → King of Glory → The Isaiah Song → Heaven, with Aurelia on Main Keys and Benjamin on electric — the same keys + electric leadership as 2026, same calendar slot, same morning-only format. That's a near-identical anchor.",
+"But I should verify whether they repeat setlists year to year. The 2024 and 2025 July first Sundays were completely different, so they do rotate. The key difference: when Aurelia specifically plays Main Keys, there's stronger consistency, and <code>Heaven</code> recurs as an anchor (2025-07-06, 2026-05-03).",
+"I analyze song clustering: Heaven + The Isaiah Song appear together frequently, as do Heaven + King of Glory. When Heaven and The Isaiah Song are paired, the middle slot is a triumphant declaration — King of Glory (7/6/25) or Victory Belongs To Jesus (10/12/25). Holy Forever is more contemplative and doesn't fit that mold as well; Believe For It could work as a declaration of faith.",
+"I check rotation gaps to avoid stale songs. Recently played (skip): Great Things, Your Great Name, Thank You Jesus For The Blood (6/21), Our God Reigns, In The Room (6/14), Victory Belongs To Jesus (6/7), House Of Miracles (5/31). Overdue and due for return: The Isaiah Song (2/8, ~5 months — the most overdue Aurelia regular), King of Glory (3/29, ~3 months), Holy Forever (3/15, ~4 months), The Blessing (4/12, ~3 months).",
+"I weigh The Blessing for slot 2, but it feels more suited to special occasions (Mother's Day, Christmas) than a summer first Sunday. For a celebratory July vibe I prefer Heaven (celebratory opener) → King of Glory (triumphant middle) → The Isaiah Song (intimate close).",
+"I reconsider whether The Isaiah Song is too repetitive given 3 prior Aurelia appearances, but songs like Heaven and Great Things repeat frequently in the dataset, so ~16% isn't extreme — and it's 5 months overdue, which makes it feel due rather than stale.",
+"For the second slot I keep going back and forth between King of Glory, Holy Forever, and Believe For It. King of Glory wins because it has the strongest track record sitting between Heaven and The Isaiah Song, and it's been ~3 months. Holy Forever is the best alternative if they vary it.",
+"On the stripped-down instrumentation: no dedicated bass, just electric + keys + drums favors keys-heavy, atmospheric songs (Heaven, The Isaiah Song), though Benjamin on electric can fill a lot of sonic space, so most songs would still work.",
+"On items count: July first Sundays tend to run a bit larger (6–7 items), and both 2024 and 2025 had 4 songs. With 3 unique songs + 1 repeat I land on ~6 items total when accounting for service elements.",
+"July 5 is right after Independence Day, so I check for a patriotic/celebratory tilt — past similar Sundays don't show a strong timing pattern, so I keep the primary prediction.",
+"<b>Final prediction</b> — Drums: Jordan Rapp; Electric: Benjamin Meehan; Main Keys: Aurelia. ≈6 items, 3 unique songs + 1 repeat: <b>Heaven → King of Glory → The Isaiah Song → Heaven</b>, mirroring the 2025-07-06 anchor. Highest confidence on the Heaven opener (95%) and Isaiah Song closer (90%); the middle song carries the most uncertainty (70%), with Holy Forever and Believe For It as the leading alternatives. Overall confidence ≈80%."
+];
+
+/* Build modal content */
+const thinkBody = document.getElementById('thinkBody');
+THINKING.forEach(t=>{ const p=document.createElement('p'); p.className='think-p'; p.innerHTML=t; thinkBody.appendChild(p); });
+
+/* ---------- Modal logic ---------- */
+const modal = document.getElementById('thinkingModal');
+const fab = document.getElementById('thinkingFab');
+const closeBtn = document.getElementById('modalClose');
+function openModal(){ modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
+function closeModal(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+fab.addEventListener('click', openModal);
+closeBtn.addEventListener('click', closeModal);
+modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && modal.classList.contains('open')) closeModal(); });
+
+/* ---------- Hero word split (typing-like blur reveal) ---------- */
+function splitWords(el){
+  const words = el.textContent.trim().split(' ');
+  el.innerHTML='';
+  words.forEach((w,i)=>{
+    const span=document.createElement('span');
+    span.className='word';
+    span.style.transitionDelay=(i*0.12)+'s';
+    // preserve gradient span styling if present
+    span.innerHTML = w;
+    el.appendChild(span);
+    if(i<words.length-1) el.appendChild(document.createTextNode(' '));
+  });
+}
+const heroTitle = document.getElementById('heroTitle');
+// keep the gradient on "Setlist": handle manually
+heroTitle.innerHTML = 'Predicted <span class="grad">Setlist</span>';
+(function(){
+  const parts = [
+    {t:'Predicted', grad:false},
+    {t:'Setlist', grad:true}
+  ];
+  heroTitle.innerHTML='';
+  parts.forEach((p,i)=>{
+    const span=document.createElement('span');
+    span.className='word'+(p.grad?' grad':'');
+    span.style.transitionDelay=(i*0.16)+'s';
+    span.textContent=p.t;
+    heroTitle.appendChild(span);
+    if(i<parts.length-1) heroTitle.appendChild(document.createTextNode(' '));
+  });
+})();
+
+/* ---------- Count up ---------- */
+function countUp(el){
+  const target=+el.dataset.target; const dur=1400; const start=performance.now();
+  function step(now){
+    const p=Math.min((now-start)/dur,1);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=Math.round(eased*target);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ---------- Reveal observer ---------- */
+function initReveals(){
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      if(en.isIntersecting){
+        en.target.classList.add('visible');
+        const c = en.target.querySelector ? en.target.querySelector('.count') : null;
+        if(en.target.classList.contains('count')) countUp(en.target);
+        if(c) countUp(c);
+        io.unobserve(en.target);
+      }
+    });
+  }, {threshold:0.15, rootMargin:'0px 0px -40px 0px'});
+
+  document.querySelectorAll('.reveal').forEach(el=> io.observe(el));
+  // hero words animate right away
+  heroTitle.querySelectorAll('.word').forEach(w=> requestAnimationFrame(()=> w.classList.add('visible')));
+}
+
+/* ---------- Boot ---------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(()=>{
+    document.getElementById('loader').classList.add('hide');
+    initReveals();
+  }, 1700);
+});
+</script>
+</body>
+</html>
